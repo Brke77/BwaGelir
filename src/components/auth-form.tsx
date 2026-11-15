@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import { z } from "zod";
 import { browserSupabase } from "@/lib/supabase/client";
+import { emailValidationMessage, signupErrorMessage } from "@/lib/auth-errors";
 import { supabaseConfig, siteUrl } from "@/lib/supabase/config";
 import { Button } from "./ui/button";
 import { Logo } from "./logo";
@@ -35,6 +36,13 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     if (mode !== "reset" && !z.email().safeParse(email).success) {
       setError("Geçerli bir e-posta adresi girin.");
       return;
+    }
+    if (mode !== "reset") {
+      const message = emailValidationMessage(email);
+      if (message) {
+        setError(message);
+        return;
+      }
     }
     if (
       ["register", "reset"].includes(mode) &&
@@ -71,9 +79,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           },
         });
         if (error)
-          throw new Error(
-            "Kayıt tamamlanamadı. Bilgileri kontrol edin veya biraz sonra tekrar deneyin.",
-          );
+          throw new Error(signupErrorMessage(error.code, error.status));
         if (data.session) {
           router.replace("/app/overview");
           router.refresh();
