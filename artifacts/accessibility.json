@@ -1,0 +1,82 @@
+[
+  {
+    "mode": "light",
+    "route": "overview",
+    "violations": []
+  },
+  {
+    "mode": "light",
+    "route": "transactions",
+    "violations": []
+  },
+  {
+    "mode": "light",
+    "route": "accounts",
+    "violations": []
+  },
+  {
+    "mode": "light",
+    "route": "categories",
+    "violations": []
+  },
+  {
+    "mode": "light",
+    "route": "budgets",
+    "violations": []
+  },
+  {
+    "mode": "light",
+    "route": "recurring",
+    "violations": []
+  },
+  {
+    "mode": "light",
+    "route": "reports",
+    "violations": []
+  },
+  {
+    "mode": "light",
+    "route": "settings",
+    "violations": []
+  },
+  {
+    "mode": "dark",
+    "route": "overview",
+    "violations": []
+  },
+  {
+    "mode": "dark",
+    "route": "transactions",
+    "violations": []
+  },
+  {
+    "mode": "dark",
+    "route": "accounts",
+    "violations": []
+  },
+  {
+    "mode": "dark",
+    "route": "categories",
+    "violations": []
+  },
+  {
+    "mode": "dark",
+    "route": "budgets",
+    "violations": []
+  },
+  {
+    "mode": "dark",
+    "route": "recurring",
+    "violations": []
+  },
+  {
+    "mode": "dark",
+    "route": "reports",
+    "violations": []
+  },
+  {
+    "mode": "dark",
+    "route": "settings",
+    "violations": []
+  }
+]

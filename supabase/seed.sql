@@ -1,0 +1,3 @@
+-- No fake money or credentials are inserted into real users.
+-- The isolated /demo workspace is generated in src/lib/demo.ts.
+-- SQL tests create two ephemeral users in PGlite and run this migration unchanged.
