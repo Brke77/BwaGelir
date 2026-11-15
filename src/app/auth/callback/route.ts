@@ -16,6 +16,13 @@ export async function GET(request: Request) {
     if (code) {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (!error) return NextResponse.redirect(new URL(next, siteUrl()));
+      if (error.code === "pkce_code_verifier_not_found") {
+        const retry =
+          next === "/reset-password"
+            ? "/forgot-password?error=recovery_browser"
+            : "/login?error=confirmation_browser";
+        return NextResponse.redirect(new URL(retry, siteUrl()));
+      }
     } else if (
       token_hash &&
       (type === "email" || type === "recovery" || type === "signup")

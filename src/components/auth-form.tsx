@@ -5,7 +5,13 @@ import Link from "next/link";
 import { ArrowRight, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import { z } from "zod";
 import { browserSupabase } from "@/lib/supabase/client";
-import { emailValidationMessage, signupErrorMessage } from "@/lib/auth-errors";
+import {
+  callbackErrorMessage,
+  emailRequestErrorMessage,
+  emailValidationMessage,
+  loginErrorMessage,
+  signupErrorMessage,
+} from "@/lib/auth-errors";
 import { supabaseConfig, siteUrl } from "@/lib/supabase/config";
 import { Button } from "./ui/button";
 import { Logo } from "./logo";
@@ -23,8 +29,38 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [confirmationEmail, setConfirmationEmail] = useState("");
   const [visible, setVisible] = useState(false);
+  const [linkError, setLinkError] = useState(() =>
+    callbackErrorMessage(params.get("error")),
+  );
   const configured = Boolean(supabaseConfig());
+  async function resendConfirmation() {
+    if (busy || !confirmationEmail) return;
+    setBusy(true);
+    setError("");
+    try {
+      const { error } = await browserSupabase().auth.resend({
+        type: "signup",
+        email: confirmationEmail,
+        options: { emailRedirectTo: `${siteUrl()}/auth/callback` },
+      });
+      if (error) {
+        setError(emailRequestErrorMessage(error.code, error.status));
+      } else {
+        setConfirmationEmail("");
+        setMessage(
+          "Bu adres doğrulama bekliyorsa yeni bir bağlantı gönderildi. Gelen kutunuzu ve spam klasörünü kontrol edin.",
+        );
+      }
+    } catch {
+      setError(
+        "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip yeniden deneyin.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
@@ -33,6 +69,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     const password = String(form.get("password") ?? "");
     setError("");
     setMessage("");
+    setConfirmationEmail("");
+    setLinkError(null);
     if (mode !== "reset" && !z.email().safeParse(email).success) {
       setError("Geçerli bir e-posta adresi girin.");
       return;
@@ -59,10 +97,10 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           email,
           password,
         });
-        if (error)
-          throw new Error(
-            "Giriş yapılamadı. E-posta, şifre ve e-posta doğrulamasını kontrol edin.",
-          );
+        if (error) {
+          if (error.code === "email_not_confirmed") setConfirmationEmail(email);
+          throw new Error(loginErrorMessage(error.code, error.status));
+        }
         router.replace("/app/overview");
         router.refresh();
       } else if (mode === "register") {
@@ -83,16 +121,18 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         if (data.session) {
           router.replace("/app/overview");
           router.refresh();
-        } else
+        } else {
+          setConfirmationEmail(email);
           setMessage(
-            "Doğrulama bağlantısı e-posta adresinize gönderildi. Gelen kutunuzu ve spam klasörünü kontrol edin.",
+            "Yeni hesabınızı doğrulamak için gelen kutunuzu ve spam klasörünü kontrol edin. Bu adresi daha önce doğruladıysanız giriş yapabilirsiniz.",
           );
+        }
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${siteUrl()}/auth/callback?next=/reset-password`,
         });
         if (error)
-          throw new Error("İstek gönderilemedi. Biraz sonra tekrar deneyin.");
+          throw new Error(emailRequestErrorMessage(error.code, error.status));
         setMessage(
           "Bu adresle bir hesap varsa şifre sıfırlama bağlantısı gönderildi.",
         );
@@ -178,18 +218,17 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               </Link>
             </div>
           )}
-          {(error || params.get("error")) && (
+          {(error || linkError) && (
             <p className="form-error" role="alert">
-              {error ||
-                "Bağlantı geçersiz veya süresi dolmuş. Yeni bir bağlantı isteyin."}
+              {error || linkError}
             </p>
           )}
-          {message ? (
+          {message && (
             <div className="success-notice" role="status">
               {message}
-              <Link href="/login">Giriş sayfasına dön</Link>
             </div>
-          ) : (
+          )}
+          {(!message || mode === "login") && (
             <form onSubmit={submit} className="auth-form">
               {mode === "register" && (
                 <label>
@@ -211,6 +250,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                     type="email"
                     placeholder="sen@ornek.com"
                     autoComplete="email"
+                    onChange={() => setConfirmationEmail("")}
                     required
                     disabled={!configured}
                   />
@@ -261,6 +301,15 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                 <ArrowRight size={17} />
               </Button>
             </form>
+          )}
+          {confirmationEmail && (
+            <Button
+              variant="secondary"
+              onClick={resendConfirmation}
+              disabled={busy}
+            >
+              Doğrulama bağlantısını yeniden gönder
+            </Button>
           )}
           <p className="auth-switch">
             {mode === "login" ? (

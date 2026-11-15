@@ -44,8 +44,10 @@ async function snapshot() {
 }
 beforeAll(async () => {
   db = new PGlite();
-  await db.exec(`create role anon; create role authenticated; create schema auth;
+  await db.exec(`create role anon; create role authenticated; create role supabase_auth_admin; create schema auth;
     create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb default '{}'::jsonb);
+    grant usage on schema auth to supabase_auth_admin;
+    grant insert on auth.users to supabase_auth_admin;
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
     grant usage on schema auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;`);
   await db.exec(
@@ -53,10 +55,12 @@ beforeAll(async () => {
   );
 });
 beforeEach(async () => {
-  await db.exec("reset role; delete from auth.users;");
+  await db.exec(
+    "reset role; delete from auth.users; set role supabase_auth_admin;",
+  );
   await db.query(
-    "insert into auth.users(id,email) values($1,'a@example.test'),($2,'b@example.test')",
-    [A, B],
+    "insert into auth.users(id,email,raw_user_meta_data) values($1,'a@example.test',$3),($2,'b@example.test',$4)",
+    [A, B, { name: "Deniz Çelik" }, { name: "Ekin Yılmaz" }],
   );
   await user(A);
   await db.query(
@@ -91,6 +95,9 @@ describe("production migration, RLS and database integrity", () => {
     expect(d.categories).toHaveLength(10);
     expect(d.transactions).toHaveLength(0);
     expect(d.preferences.theme).toBe("system");
+    expect(d.preferences.name).toBe("Deniz Çelik");
+    await user(B);
+    expect((await snapshot()).preferences.name).toBe("Ekin Yılmaz");
   });
   it("B cannot read, update or delete A's transaction even with its exact UUID", async () => {
     const id = (await insertTx()).rows[0].id;
